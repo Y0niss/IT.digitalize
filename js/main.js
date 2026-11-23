@@ -27,7 +27,9 @@
     setup: ['The form is not connected yet — please contact us on WhatsApp.', 'الفورم لسه مش متوصل — كلمنا على واتساب.'],
     sending: ['Sending…', 'جاري الإرسال…'],
     ok: ['Thank you! We received your request and will contact you within 1 hour.', 'شكراً! وصلنا طلبك وهنتواصل معاك خلال ساعة.'],
-    fail: ['Something went wrong. Please try again or contact us on WhatsApp.', 'حصلت مشكلة. جرب تاني أو كلمنا على واتساب.']
+    fail: ['Something went wrong. Please try again or contact us on WhatsApp.', 'حصلت مشكلة. جرب تاني أو كلمنا على واتساب.'],
+    local: ['The form only works on the live website (https://), not when the page is opened from a file on your computer.', 'الفورم بيشتغل على الموقع وهو مرفوع على النت (https://) بس، مش لما الصفحة تتفتح كملف من الكمبيوتر.'],
+    activate: ['Almost done: an activation email was sent to the company inbox. Click "Activate Form" in it, then send again.', 'فاضل خطوة: اتبعت إيميل تفعيل على إيميل الشركة. دوس فيه على "Activate Form" وبعدين ابعت تاني.']
   };
   var msg = function (k) { return MSG[k][isAr ? 1 : 0]; };
   window.ITD = { lang: function () { return isAr ? 'ar' : 'en'; } };
@@ -127,6 +129,10 @@
         form.phone.focus();
         return;
       }
+      if (location.protocol === 'file:') {
+        setStatus('local', 'is-error');
+        return;
+      }
       if (!FORM_INBOX) {
         setStatus('setup', 'is-error');
         return;
@@ -146,11 +152,13 @@
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload)
       }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }).then(function (res) {
+        if (/activat/i.test(res.j.message || '')) { var e = new Error('activate'); e.key = 'activate'; throw e; }
         if (!res.ok || String(res.j.success) !== 'true') throw new Error(res.j.message || 'failed');
         form.reset();
         setStatus('ok', 'is-ok');
-      }).catch(function () {
-        setStatus('fail', 'is-error');
+      }).catch(function (err) {
+        if (window.console) console.warn('Form error:', err && err.message);
+        setStatus(err && err.key === 'activate' ? 'activate' : 'fail', 'is-error');
       }).then(function () { btn.disabled = false; });
     });
   }
